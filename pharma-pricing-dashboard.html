@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharmaceutical Pricing Chain</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple: #8B83FF;
+    --teal: #2BC48E;
+    --coral: #EF7A4A;
+    --pink: #E06B93;
+    --blue: #5AA0F0;
+    --amber: #D49A2A;
+    --red: #F06060;
+    --gray: #A0A098;
+    --green: #7CB82F;
+    --darkBg: #0e0e14;
+    --cardBg: #121218;
+    --surfBg: #1a1a24;
+    --text1: #e4e4ec;
+    --text2: #9a9ab0;
+    --text3: #5e5e72;
+    --border: rgba(255,255,255,0.08);
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--darkBg);
+    color: var(--text1);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    background: var(--darkBg);
+    border-radius: 16px;
+  }
+
+  .header-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .header-sub {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+
+  /* NAV */
+  .nav {
+    display: flex;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 16px;
+    gap: 0;
+  }
+  .nav-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text2);
+    background: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    transition: all 0.15s;
+  }
+  .nav-btn.active {
+    border-bottom-color: var(--purple);
+    color: var(--text1);
+    font-weight: 500;
+  }
+
+  /* KEY METRICS */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .metric-card {
+    background: var(--surfBg);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+  .metric-value { font-size: 20px; font-weight: 500; color: var(--text1); font-family: 'JetBrains Mono', monospace; }
+  .metric-sub { font-size: 11px; margin-top: 2px; color: var(--text2); }
+
+  /* CARDS */
+  .card {
+    background: var(--cardBg);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 12px;
+  }
+
+  /* TABS */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* SLIDERS */
+  .slider-row { margin-bottom: 12px; }
+  .slider-header { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .slider-label { font-size: 12px; color: var(--text2); }
+  .slider-value { font-size: 13px; font-weight: 500; color: var(--text1); font-family: 'JetBrains Mono', monospace; }
+  input[type="range"] {
+    width: 100%; height: 4px; appearance: none; -webkit-appearance: none;
+    background: var(--surfBg); border-radius: 4px; outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none; -webkit-appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--purple); cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--purple); cursor: pointer; border: none;
+  }
+
+  /* TWO-COL GRIDS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+
+  /* FLOW VISUALIZATION */
+  .flow-container { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .flow-box {
+    border-radius: 10px; padding: 10px 14px;
+    text-align: center; width: 80%;
+  }
+  .flow-label { font-size: 13px; font-weight: 500; }
+  .flow-amount { font-size: 20px; font-weight: 500; color: var(--text1); margin: 4px 0; font-family: 'JetBrains Mono', monospace; }
+  .flow-sub { font-size: 11px; color: var(--text2); }
+  .flow-arrow { display: flex; justify-content: center; margin: 6px 0; }
+  .flow-row { display: flex; gap: 12px; width: 90%; justify-content: center; align-items: stretch; }
+  .flow-row .flow-box { width: calc(50% - 24px); }
+
+  /* TABLE */
+  .data-table { background: var(--surfBg); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .data-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid var(--border); }
+  .data-row:last-child { border-bottom: none; }
+  .data-key { font-size: 12px; color: var(--text2); }
+  .data-val { font-size: 13px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+  /* INSIGHT BOX */
+  .insight-box {
+    background: var(--surfBg);
+    border-radius: 8px; padding: 12px;
+    margin-top: 12px; font-size: 12px;
+    color: var(--text2); line-height: 1.6;
+  }
+
+  /* EXPLAIN GRID */
+  .explain-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .explain-card {
+    background: var(--surfBg); border-radius: 10px; padding: 14px;
+  }
+  .explain-icon-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .explain-role { font-size: 13px; font-weight: 500; }
+  .explain-ex { font-size: 10px; color: var(--text3); }
+  .explain-body { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+  /* PROJECTIONS */
+  .projection-cards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+  .proj-card { background: var(--cardBg); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px; }
+  .proj-title { font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+  .proj-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  /* MINI METRICS */
+  .mini-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-mc { background: var(--surfBg); border-radius: 8px; padding: 10px 12px; }
+  .mini-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+  .mini-val { font-size: 18px; font-weight: 500; color: var(--text1); font-family: 'JetBrains Mono', monospace; }
+  .mini-sub { font-size: 11px; margin-top: 2px; }
+
+  /* CHART CONTAINERS */
+  .chart-wrap { position: relative; }
+
+  .footer { text-align: center; margin: 20px 0 8px; font-size: 10px; color: var(--text3); }
+
+  .bull-bear { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .signal-box { border-radius: 8px; padding: 12px; }
+  .signal-title { font-size: 12px; font-weight: 500; margin-bottom: 6px; }
+  .signal-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  @media (max-width: 640px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .explain-grid { grid-template-columns: 1fr; }
+    .projection-cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-title">Pharmaceutical pricing chain — where GLP-1 dollars actually go</div>
+  <div class="header-sub">Interactive model of the US drug pricing system: from $1,349 list price to what Novo Nordisk actually keeps</div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="switchTab('flow', this)">Money flow</button>
+    <button class="nav-btn" onclick="switchTab('compare', this)">Channel comparison</button>
+    <button class="nav-btn" onclick="switchTab('project', this)">Price projections</button>
+    <button class="nav-btn" onclick="switchTab('explain', this)">How it works</button>
+  </nav>
+
+  <!-- KEY METRICS -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">List price (WAC)</div>
+      <div class="metric-value" id="m-list">$1,349</div>
+      <div class="metric-sub">What nobody actually pays</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Manufacturer keeps</div>
+      <div class="metric-value" id="m-mfg">—</div>
+      <div class="metric-sub" id="m-mfg-pct">% of list price</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Middlemen take</div>
+      <div class="metric-value" id="m-mid" style="color: var(--coral)">—</div>
+      <div class="metric-sub" id="m-mid-pct">% of list price</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Patient pays</div>
+      <div class="metric-value" id="m-patient" style="color: var(--blue)">—</div>
+      <div class="metric-sub" id="m-patient-pct">% of list price</div>
+    </div>
+  </div>
+
+  <!-- FLOW TAB -->
+  <div id="tab-flow" class="tab-content active">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Adjust the system</div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">List price (WAC)</span><span class="slider-value" id="val-listPrice">$1,349</span></div>
+          <input type="range" id="listPrice" min="500" max="2000" step="10" value="1349" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Wholesale discount</span><span class="slider-value" id="val-wholesaleDiscount">3%</span></div>
+          <input type="range" id="wholesaleDiscount" min="1" max="10" step="1" value="3" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">PBM rebate (% of list)</span><span class="slider-value" id="val-rebatePercent">55%</span></div>
+          <input type="range" id="rebatePercent" min="20" max="75" step="1" value="55" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">PBM retains (% of rebate)</span><span class="slider-value" id="val-pbmRetain">25%</span></div>
+          <input type="range" id="pbmRetain" min="5" max="50" step="1" value="25" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Pharmacy reimbursement (% of list)</span><span class="slider-value" id="val-pharmacyReimb">85%</span></div>
+          <input type="range" id="pharmacyReimb" min="60" max="100" step="1" value="85" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Patient copay</span><span class="slider-value" id="val-patientCopay">$50</span></div>
+          <input type="range" id="patientCopay" min="0" max="500" step="5" value="50" oninput="updateAll()">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Manufacturing cost (COGS)</span><span class="slider-value" id="val-cogs">$35</span></div>
+          <input type="range" id="cogs" min="1" max="100" step="1" value="35" oninput="updateAll()">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Where every dollar goes</div>
+        <div class="chart-wrap" style="height: 280px;">
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div class="legend" id="pie-legend"></div>
+      </div>
+    </div>
+
+    <!-- Visual Flow -->
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">The money flow — step by step</div>
+      <div class="flow-container" id="flow-visual"></div>
+    </div>
+  </div>
+
+  <!-- COMPARE TAB -->
+  <div id="tab-compare" class="tab-content">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Traditional channel (PBM/insurer)</div>
+        <div class="data-table" id="trad-table"></div>
+        <div class="mini-metrics">
+          <div class="mini-mc">
+            <div class="mini-label">Mfg net revenue</div>
+            <div class="mini-val" id="c-mfgNet">—</div>
+            <div class="mini-sub" style="color: var(--teal)" id="c-mfgMargin">—</div>
+          </div>
+          <div class="mini-mc">
+            <div class="mini-label">Patient pays</div>
+            <div class="mini-val" id="c-patient">—</div>
+            <div class="mini-sub" style="color: var(--pink)">Copay only</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">DTC channel (TrumpRx / direct)</div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">DTC price</span><span class="slider-value" id="val-dtcPrice">$350</span></div>
+          <input type="range" id="dtcPrice" min="100" max="800" step="10" value="350" oninput="updateAll()">
+        </div>
+        <div class="data-table" id="dtc-table"></div>
+        <div class="mini-metrics">
+          <div class="mini-mc">
+            <div class="mini-label">Mfg net revenue</div>
+            <div class="mini-val" id="c-dtcNet">—</div>
+            <div class="mini-sub" style="color: var(--teal)" id="c-dtcMargin">—</div>
+          </div>
+          <div class="mini-mc">
+            <div class="mini-label">Patient pays</div>
+            <div class="mini-val" id="c-dtcPatient">—</div>
+            <div class="mini-sub" style="color: var(--pink)">Full price, no insurance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Side-by-side: who gets what</div>
+      <div class="chart-wrap" style="height: 180px;">
+        <canvas id="compareChart"></canvas>
+      </div>
+      <div class="insight-box" id="compare-insight"></div>
+    </div>
+  </div>
+
+  <!-- PROJECT TAB -->
+  <div id="tab-project" class="tab-content">
+    <div class="card">
+      <div class="card-title">Net manufacturer revenue per user/month — by channel (2026–2035)</div>
+      <div style="display: flex; gap: 14px; font-size: 11px; color: var(--text2); margin-bottom: 8px; flex-wrap: wrap;">
+        <span class="legend-item"><span class="legend-dot" style="background: var(--purple)"></span>Traditional (post-rebate)</span>
+        <span class="legend-item"><span class="legend-dot" style="background: var(--teal)"></span>DTC / direct</span>
+        <span class="legend-item"><span class="legend-dot" style="background: var(--amber); opacity: 0.7;"></span>Generic (post-2031)</span>
+      </div>
+      <div class="chart-wrap" style="height: 260px;">
+        <canvas id="projectionChart"></canvas>
+      </div>
+    </div>
+
+    <div class="projection-cards">
+      <div class="proj-card">
+        <div class="proj-title" style="color: var(--purple)">2026–2027: Peak branded pricing</div>
+        <div class="proj-body">Novo pledges list price cut to $675 by 2027. DTC at $350 declining to $250. Medicare negotiation begins (semaglutide on IRA list). Net manufacturer revenue: ~$300–450/mo.</div>
+      </div>
+      <div class="proj-card">
+        <div class="proj-title" style="color: var(--teal)">2028–2031: Compression era</div>
+        <div class="proj-body">Competition from LLY orforglipron (oral), survodutide, retatrutide. Medicare negotiated prices take effect. DTC prices converge toward $150–200/mo. Margins shrink but volume explodes.</div>
+      </div>
+      <div class="proj-card">
+        <div class="proj-title" style="color: var(--amber)">2031+: Generic disruption</div>
+        <div class="proj-body">Semaglutide patents expire ~2031–33. Generics could cost $28–140/year. Branded manufacturers must differentiate on next-gen molecules or shift to volume-based models. PBM system may collapse for this drug class.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPLAIN TAB -->
+  <div id="tab-explain" class="tab-content">
+    <div class="card">
+      <div class="card-title">The players in the US drug pricing chain</div>
+      <div class="explain-grid">
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">🧪</span>
+            <div>
+              <div class="explain-role" style="color: var(--teal)">Manufacturer</div>
+              <div class="explain-ex">Novo Nordisk, Eli Lilly</div>
+            </div>
+          </div>
+          <div class="explain-body">Creates the drug, sets list price (WAC), pays rebates to PBMs. Only keeps 25–40% of list price.</div>
+        </div>
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">🚚</span>
+            <div>
+              <div class="explain-role" style="color: var(--gray)">Wholesaler</div>
+              <div class="explain-ex">McKesson, AmerisourceBergen, Cardinal</div>
+            </div>
+          </div>
+          <div class="explain-body">Physically moves drugs from factory to pharmacy. 3 companies control ~90% of distribution. Thin margins (~2–4%).</div>
+        </div>
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">🏦</span>
+            <div>
+              <div class="explain-role" style="color: var(--coral)">PBM</div>
+              <div class="explain-ex">CVS Caremark, Express Scripts, OptumRx</div>
+            </div>
+          </div>
+          <div class="explain-body">Negotiates rebates with manufacturers, decides formulary placement, processes claims. Keeps portion of rebates — amount is often secret.</div>
+        </div>
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">🛡️</span>
+            <div>
+              <div class="explain-role" style="color: var(--blue)">Insurer</div>
+              <div class="explain-ex">Blue Cross, Aetna, Cigna, UnitedHealth</div>
+            </div>
+          </div>
+          <div class="explain-body">Pays pharmacy reimbursement, receives rebate pass-through from PBM. Sets patient copay tiers and coverage rules.</div>
+        </div>
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">💊</span>
+            <div>
+              <div class="explain-role" style="color: var(--amber)">Pharmacy</div>
+              <div class="explain-ex">CVS, Walgreens, independent</div>
+            </div>
+          </div>
+          <div class="explain-body">Dispenses drug to patient, collects copay. Often reimbursed at rates below purchase cost for specialty drugs. Squeezed margins.</div>
+        </div>
+        <div class="explain-card">
+          <div class="explain-icon-row">
+            <span style="font-size: 16px;">👤</span>
+            <div>
+              <div class="explain-role" style="color: var(--pink)">Patient</div>
+              <div class="explain-ex">260M US adults</div>
+            </div>
+          </div>
+          <div class="explain-body">Pays copay ($0–$1,349 depending on insurance). Uninsured see full list price. Only 20–25% of commercial plans cover GLP-1s for weight loss.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Why the list price is artificially inflated</div>
+      <div style="font-size: 12px; color: var(--text2); line-height: 1.7;">
+        <p style="margin-bottom: 10px;">The $1,349 list price exists because the entire system runs on <strong style="color: var(--text1)">percentage-based rebates</strong>. Every middleman's cut is a percentage of the list price. If the PBM negotiates a 55% rebate, that's $742 going back. If Novo set the list at $500 (closer to what they keep), a 55% rebate would only be $275 — and the PBM wouldn't give Wegovy favorable formulary placement.</p>
+        <p style="margin-bottom: 10px;">It's a system where the sticker price is inflated so everyone can claim they got a big discount. The manufacturer appears to charge $1,349. The PBM tells the insurer it "saved" them $742. The insurer tells the employer it's managing costs. <strong style="color: var(--text1)">The uninsured patient who has no one negotiating on their behalf sees $1,349 and either can't afford the drug or goes into debt.</strong></p>
+        <p>This is precisely why the DTC/TrumpRx model at $350/month is disruptive: it bypasses the entire chain. Novo keeps ~$333 net (vs ~$340–500 traditional), the patient pays 74% less, and the middlemen get nothing. Everyone wins except PBMs and wholesalers — which is why those entities are fighting the model aggressively through lobbying and contract restrictions.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Why this matters for investors</div>
+      <div class="bull-bear">
+        <div class="signal-box" style="background: rgba(43,196,142,0.07); border: 1px solid rgba(43,196,142,0.2);">
+          <div class="signal-title" style="color: var(--teal)">Bullish signals</div>
+          <div class="signal-body">DTC channels improve unit economics. Price cuts don't hurt manufacturer net revenue as much as headlines suggest. Volume growth outpaces price decline. Generic entry is still 5+ years away. Oral formulations open massive new market.</div>
+        </div>
+        <div class="signal-box" style="background: rgba(240,96,96,0.07); border: 1px solid rgba(240,96,96,0.2);">
+          <div class="signal-title" style="color: var(--red)">Bearish signals</div>
+          <div class="signal-body">Medicare negotiation will compress net prices. IRA provisions directly target semaglutide. Generic entry by ~2031 could crater branded pricing. Political pressure intensifying. PBM reform could restructure entire rebate system.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Model for educational purposes only. Sources: Novo Nordisk disclosures, JAMA Network Open, Yale/Harvard COGS studies, FTC PBM reports, TrumpRx pricing, CMS IRA provisions.
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  listPrice: 1349,
+  wholesaleDiscount: 3,
+  rebatePercent: 55,
+  pbmRetain: 25,
+  pharmacyReimb: 85,
+  patientCopay: 50,
+  dtcPrice: 350,
+  cogs: 35,
+};
+
+// ─── Chart instances ─────────────────────────────────────────────────────────
+let pieChart = null, compareChart = null, projectionChart = null;
+
+const COLORS = {
+  purple: '#8B83FF', teal: '#2BC48E', coral: '#EF7A4A', pink: '#E06B93',
+  blue: '#5AA0F0', amber: '#D49A2A', red: '#F06060', gray: '#A0A098', green: '#7CB82F',
+};
+const CHART_DEFAULTS = {
+  color: '#e4e4ec',
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1a1a24',
+      borderColor: 'rgba(255,255,255,0.08)',
+      borderWidth: 1,
+      titleColor: '#9a9ab0',
+      bodyColor: '#e4e4ec',
+      padding: 8,
+      titleFont: { family: 'IBM Plex Sans', size: 11 },
+      bodyFont: { family: 'JetBrains Mono', size: 12 },
+    }
+  }
+};
+
+// ─── Calculations ─────────────────────────────────────────────────────────────
+function calc() {
+  const { listPrice, wholesaleDiscount, rebatePercent, pbmRetain, pharmacyReimb, patientCopay, dtcPrice, cogs } = state;
+  const wholesalePrice = listPrice * (1 - wholesaleDiscount / 100);
+  const totalRebate = listPrice * (rebatePercent / 100);
+  const pbmKeeps = totalRebate * (pbmRetain / 100);
+  const insurerRebate = totalRebate - pbmKeeps;
+  const mfgNet = wholesalePrice - totalRebate;
+  const pharmacyReceives = listPrice * (pharmacyReimb / 100);
+  const pharmacyMargin = pharmacyReceives - wholesalePrice;
+  const mfgMarginTraditional = mfgNet > 0 ? Math.round((mfgNet - cogs) / mfgNet * 100) : 0;
+  const dtcMargin = Math.round((dtcPrice - cogs) / dtcPrice * 100);
+  const mfgNetDTC = Math.round(dtcPrice * 0.95);
+  return {
+    wholesalePrice: Math.round(wholesalePrice),
+    totalRebate: Math.round(totalRebate),
+    pbmKeeps: Math.round(pbmKeeps),
+    insurerRebate: Math.round(insurerRebate),
+    mfgNet: Math.round(mfgNet),
+    pharmacyReceives: Math.round(pharmacyReceives),
+    pharmacyMargin: Math.round(pharmacyMargin),
+    mfgMarginTraditional,
+    dtcMargin,
+    mfgNetDTC,
+  };
+}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  // Re-render charts for newly visible tab
+  setTimeout(() => {
+    if (name === 'flow') renderPieChart();
+    if (name === 'compare') renderCompareChart();
+    if (name === 'project') renderProjectionChart();
+  }, 50);
+}
+
+// ─── Main update ─────────────────────────────────────────────────────────────
+function updateAll() {
+  // Sync state from sliders
+  ['listPrice','wholesaleDiscount','rebatePercent','pbmRetain','pharmacyReimb','patientCopay','dtcPrice','cogs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) state[id] = +el.value;
+  });
+
+  // Update slider value labels
+  updateSliderLabels();
+
+  // Run calc
+  const c = calc();
+  const { listPrice, wholesaleDiscount, patientCopay } = state;
+
+  // Key metrics
+  document.getElementById('m-list').textContent = '$' + listPrice.toLocaleString();
+  const mfgColor = c.mfgNet > 0 ? COLORS.teal : COLORS.red;
+  document.getElementById('m-mfg').style.color = mfgColor;
+  document.getElementById('m-mfg').textContent = '$' + c.mfgNet.toLocaleString();
+  document.getElementById('m-mfg-pct').textContent = Math.round(c.mfgNet / listPrice * 100) + '% of list price';
+  const mid = listPrice - c.mfgNet - patientCopay;
+  document.getElementById('m-mid').textContent = '$' + mid.toLocaleString();
+  document.getElementById('m-mid-pct').textContent = Math.round(mid / listPrice * 100) + '% of list price';
+  document.getElementById('m-patient').textContent = '$' + patientCopay;
+  document.getElementById('m-patient-pct').textContent = Math.round(patientCopay / listPrice * 100) + '% of list price';
+
+  // Render active tab charts/content
+  const activeTab = document.querySelector('.tab-content.active');
+  if (!activeTab) return;
+  const tabId = activeTab.id;
+  if (tabId === 'tab-flow') { renderPieChart(); renderFlowVisual(c); }
+  if (tabId === 'tab-compare') { renderCompareTab(c); renderCompareChart(); }
+  if (tabId === 'tab-project') renderProjectionChart();
+
+  // Always update compare tab data even if not visible (so it's ready when switched)
+  renderCompareTabData(c);
+}
+
+function updateSliderLabels() {
+  const { listPrice, wholesaleDiscount, rebatePercent, pbmRetain, pharmacyReimb, patientCopay, dtcPrice, cogs } = state;
+  document.getElementById('val-listPrice').textContent = '$' + listPrice.toLocaleString();
+  document.getElementById('val-wholesaleDiscount').textContent = wholesaleDiscount + '%';
+  document.getElementById('val-rebatePercent').textContent = rebatePercent + '%';
+  document.getElementById('val-pbmRetain').textContent = pbmRetain + '%';
+  document.getElementById('val-pharmacyReimb').textContent = pharmacyReimb + '%';
+  document.getElementById('val-patientCopay').textContent = '$' + patientCopay;
+  document.getElementById('val-dtcPrice').textContent = '$' + dtcPrice;
+  document.getElementById('val-cogs').textContent = '$' + cogs;
+}
+
+// ─── Pie Chart ───────────────────────────────────────────────────────────────
+function renderPieChart() {
+  const c = calc();
+  const { listPrice, wholesaleDiscount } = state;
+  const splitData = [
+    { name: 'Manufacturer net', value: Math.max(0, c.mfgNet), color: COLORS.teal },
+    { name: 'PBM retained', value: c.pbmKeeps, color: COLORS.coral },
+    { name: 'Insurer rebate', value: c.insurerRebate, color: COLORS.blue },
+    { name: 'Wholesaler margin', value: Math.round(listPrice * wholesaleDiscount / 100), color: COLORS.gray },
+    { name: 'Pharmacy margin', value: Math.max(0, c.pharmacyMargin), color: COLORS.amber },
+  ];
+  const total = splitData.reduce((s, d) => s + d.value, 0);
+
+  // Legend
+  const leg = document.getElementById('pie-legend');
+  leg.innerHTML = splitData.map(d =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${d.color}"></span>${d.name} (${Math.round(d.value / total * 100)}%)</span>`
+  ).join('');
+
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: splitData.map(d => d.name),
+      datasets: [{
+        data: splitData.map(d => d.value),
+        backgroundColor: splitData.map(d => d.color),
+        borderColor: '#121218',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      cutout: '55%',
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        tooltip: {
+          ...CHART_DEFAULTS.plugins.tooltip,
+          callbacks: { label: ctx => ` $${ctx.raw}/mo` }
+        }
+      }
+    }
+  });
+}
+
+// ─── Flow Visual ─────────────────────────────────────────────────────────────
+function flowBox(label, sub, amount, color, width) {
+  return `<div class="flow-box" style="width:${width||'80%'};background:${color}12;border:1px solid ${color}30">
+    <div class="flow-label" style="color:${color}">${label}</div>
+    <div class="flow-amount">${amount}</div>
+    <div class="flow-sub">${sub}</div>
+  </div>`;
+}
+function arrow() {
+  return `<div class="flow-arrow"><svg width="20" height="24" viewBox="0 0 20 24"><path d="M10 0 L10 18 M4 14 L10 20 L16 14" stroke="#5e5e72" stroke-width="1.5" fill="none"/></svg></div>`;
+}
+
+function renderFlowVisual(c) {
+  const { listPrice, wholesaleDiscount, rebatePercent, pbmRetain, patientCopay, cogs } = state;
+  const pharmMarginColor = c.pharmacyMargin >= 0 ? COLORS.amber : COLORS.red;
+  const html = `
+    ${flowBox('Novo Nordisk (Manufacturer)', `Sets list price • COGS: $${cogs}/mo`, `$${listPrice}/mo list`, COLORS.purple, '80%')}
+    ${arrow()}
+    <div class="flow-row">
+      ${flowBox('Wholesaler', 'McKesson / ABC / Cardinal', `−$${Math.round(listPrice * wholesaleDiscount / 100)}`, COLORS.gray)}
+      <div style="display:flex;align-items:center;padding:0 4px;"><svg width="30" height="2"><line x1="0" y1="1" x2="30" y2="1" stroke="#5e5e72" stroke-width="1"/></svg></div>
+      ${flowBox('Pharmacy', `Receives $${c.pharmacyReceives} • Margin: $${c.pharmacyMargin}`, `${c.pharmacyMargin >= 0 ? '+' : ''}$${c.pharmacyMargin}`, pharmMarginColor)}
+    </div>
+    ${arrow()}
+    ${flowBox('PBM (Caremark / Express Scripts / OptumRx)', `Negotiates ${rebatePercent}% rebate • Retains ${pbmRetain}% of it`, `Keeps $${c.pbmKeeps}/mo`, COLORS.coral, '80%')}
+    ${arrow()}
+    <div class="flow-row">
+      ${flowBox('Insurer', 'Receives rebate pass-through', `Gets $${c.insurerRebate} back`, COLORS.blue)}
+      <div style="display:flex;align-items:center;padding:0 4px;"><svg width="30" height="2"><line x1="0" y1="1" x2="30" y2="1" stroke="#5e5e72" stroke-width="1"/></svg></div>
+      ${flowBox('Patient', 'Copay at pharmacy counter', `Pays $${patientCopay}`, COLORS.pink)}
+    </div>
+    ${arrow()}
+    ${flowBox('Novo Nordisk net revenue', `List $${listPrice} − rebates $${c.totalRebate} − wholesale $${Math.round(listPrice * wholesaleDiscount / 100)}`, `Keeps $${c.mfgNet}/mo (${Math.round(c.mfgNet / listPrice * 100)}%)`, COLORS.teal, '80%')}
+  `;
+  document.getElementById('flow-visual').innerHTML = html;
+}
+
+// ─── Compare Tab ─────────────────────────────────────────────────────────────
+function renderCompareTabData(c) {
+  const { listPrice, wholesaleDiscount, rebatePercent, dtcPrice } = state;
+
+  // Traditional table
+  const tradRows = [
+    { label: 'List price (WAC)', val: `$${listPrice}`, color: '#e4e4ec' },
+    { label: `Wholesale discount (−${wholesaleDiscount}%)`, val: `−$${Math.round(listPrice * wholesaleDiscount / 100)}`, color: COLORS.gray },
+    { label: `PBM rebate (−${rebatePercent}%)`, val: `−$${c.totalRebate}`, color: COLORS.coral },
+    { label: '→ PBM retains', val: `$${c.pbmKeeps}`, color: COLORS.coral },
+    { label: '→ Insurer receives', val: `$${c.insurerRebate}`, color: COLORS.blue },
+  ];
+  const tradEl = document.getElementById('trad-table');
+  if (tradEl) tradEl.innerHTML = tradRows.map((r, i) =>
+    `<div class="data-row" style="${i===4?'border-bottom:none':''}"><span class="data-key">${r.label}</span><span class="data-val" style="color:${r.color}">${r.val}</span></div>`
+  ).join('');
+
+  // DTC table
+  const dtcRows = [
+    { label: 'Patient pays', val: `$${dtcPrice}`, color: COLORS.pink },
+    { label: 'Processing fees (~5%)', val: `−$${Math.round(dtcPrice * 0.05)}`, color: COLORS.gray },
+    { label: 'No PBM rebate', val: '$0', color: COLORS.teal },
+    { label: 'No insurer', val: '$0', color: COLORS.teal },
+  ];
+  const dtcEl = document.getElementById('dtc-table');
+  if (dtcEl) dtcEl.innerHTML = dtcRows.map((r, i) =>
+    `<div class="data-row" style="${i===3?'border-bottom:none':''}"><span class="data-key">${r.label}</span><span class="data-val" style="color:${r.color}">${r.val}</span></div>`
+  ).join('');
+
+  // Metric values
+  const mfgNetEl = document.getElementById('c-mfgNet');
+  if (mfgNetEl) mfgNetEl.textContent = `$${c.mfgNet}/mo`;
+  const mfgMrgEl = document.getElementById('c-mfgMargin');
+  if (mfgMrgEl) mfgMrgEl.textContent = `Margin: ${c.mfgMarginTraditional}%`;
+  const patEl = document.getElementById('c-patient');
+  if (patEl) patEl.textContent = `$${state.patientCopay}/mo`;
+  const dtcNetEl = document.getElementById('c-dtcNet');
+  if (dtcNetEl) dtcNetEl.textContent = `$${c.mfgNetDTC}/mo`;
+  const dtcMrgEl = document.getElementById('c-dtcMargin');
+  if (dtcMrgEl) dtcMrgEl.textContent = `Margin: ${c.dtcMargin}%`;
+  const dtcPtEl = document.getElementById('c-dtcPatient');
+  if (dtcPtEl) dtcPtEl.textContent = `$${dtcPrice}/mo`;
+
+  // Insight
+  const insightEl = document.getElementById('compare-insight');
+  if (insightEl) {
+    const { listPrice, dtcPrice, patientCopay } = state;
+    const mid = listPrice - c.mfgNet - patientCopay;
+    const earn = c.mfgNetDTC > c.mfgNet ? 'more' : 'roughly the same';
+    insightEl.innerHTML = `<span style="font-weight:500;color:${COLORS.teal}">Key insight: </span>
+      In the traditional channel, the manufacturer nets $${c.mfgNet}/mo from a $${listPrice} list price.
+      In the DTC channel, they net $${c.mfgNetDTC}/mo from $${dtcPrice}. The manufacturer earns ${earn} per user
+      while the patient pays ${Math.round((1 - dtcPrice / listPrice) * 100)}% less. The $${mid} difference in the
+      traditional channel goes entirely to middlemen.`;
+  }
+}
+
+function renderCompareTab(c) {
+  renderCompareTabData(c);
+}
+
+function renderCompareChart() {
+  const c = calc();
+  const { listPrice, patientCopay, dtcPrice } = state;
+  const mid = listPrice - c.mfgNet - patientCopay;
+  const ctx = document.getElementById('compareChart').getContext('2d');
+  if (compareChart) compareChart.destroy();
+  compareChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Traditional (PBM/insurer)', 'DTC (TrumpRx)'],
+      datasets: [
+        { label: 'Manufacturer net', data: [c.mfgNet, c.mfgNetDTC], backgroundColor: COLORS.teal },
+        { label: 'Patient pays', data: [patientCopay, dtcPrice], backgroundColor: COLORS.pink },
+        { label: 'Middlemen', data: [mid, 0], backgroundColor: COLORS.coral },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          stacked: true,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#9a9ab0', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + v }
+        },
+        y: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { color: '#9a9ab0', font: { family: 'IBM Plex Sans', size: 11 } }
+        }
+      },
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: { display: true, position: 'bottom', labels: { color: '#9a9ab0', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 10, padding: 12 } },
+        tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.raw}` } }
+      }
+    }
+  });
+}
+
+// ─── Projection Chart ─────────────────────────────────────────────────────────
+function renderProjectionChart() {
+  const { listPrice, rebatePercent, dtcPrice } = state;
+  const years = [], tradData = [], dtcData = [], genericData = [];
+  let tPrice = listPrice, dPrice = dtcPrice;
+  for (let y = 2026; y <= 2035; y++) {
+    const yr = y - 2026;
+    years.push(y);
+    tradData.push(Math.max(50, Math.round(tPrice * (1 - rebatePercent / 100) * Math.pow(0.92, yr))));
+    dtcData.push(Math.max(28, Math.round(dPrice * Math.pow(0.88, yr))));
+    genericData.push(yr >= 5 ? Math.max(5, Math.round(140 / 12 * Math.pow(0.85, Math.max(0, yr - 5)))) : null);
+  }
+
+  const ctx = document.getElementById('projectionChart').getContext('2d');
+  if (projectionChart) projectionChart.destroy();
+  projectionChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        {
+          label: 'Traditional net',
+          data: tradData,
+          borderColor: COLORS.purple,
+          backgroundColor: COLORS.purple + '18',
+          fill: true,
+          borderWidth: 2,
+          tension: 0.35,
+          pointRadius: 3,
+        },
+        {
+          label: 'DTC net',
+          data: dtcData,
+          borderColor: COLORS.teal,
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          tension: 0.35,
+          pointRadius: 3,
+        },
+        {
+          label: 'Generic price',
+          data: genericData,
+          borderColor: COLORS.amber,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [4, 3],
+          tension: 0.3,
+          pointRadius: 3,
+          spanGaps: false,
+        },
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#9a9ab0', font: { family: 'JetBrains Mono', size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#9a9ab0', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + v }
+        }
+      },
+      plugins: {
+        ...CHART_DEFAULTS.plugins,
+        legend: { display: true, position: 'bottom', labels: { color: '#9a9ab0', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 10, padding: 12 } },
+        tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ctx.raw !== null ? ` ${ctx.dataset.label}: $${ctx.raw}/mo` : ' N/A' } }
+      }
+    }
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateAll();
+  renderFlowVisual(calc());
+});
+</script>
+</body>
+</html>
